@@ -10,18 +10,17 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "https://hdelshad.com", // فقط دامنه شما
+    origin: "https://hdelshad.com",
     methods: ["GET", "POST"]
   }
 });
 
-// استفاده از json بدون body-parser
 app.use(express.json());
 
 let chatHistory = [];
 
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  console.log('کاربر متصل شد:', socket.id);
   socket.emit('chat_history', chatHistory);
 
   socket.on('user_message', async (msg) => {
@@ -34,30 +33,29 @@ io.on('connection', (socket) => {
         chat_id: TELEGRAM_USER_ID,
         text: msg,
       });
+      console.log('✅ پیام به تلگرام فرستاده شد');
     } catch (error) {
-      console.error('Failed to send to Telegram:', error.response?.data || error.message);
+      console.error('❌ خطا در ارسال به تلگرام:', error.response?.data || error.message);
     }
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    console.log('کاربر قطع ارتباط داد:', socket.id);
   });
 });
 
-// ویب‌هوک تلگرام
 app.post('/telegram-webhook', (req, res) => {
   const message = req.body.message;
-
   if (message && message.text && message.reply_to_message) {
     const replyMsg = { from: 'admin', text: message.text };
     chatHistory.push(replyMsg);
     io.emit('new_message', replyMsg);
+    console.log('📩 پیام ادمین به چت ارسال شد');
   }
-
   res.sendStatus(200);
 });
 
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ سرور در حال اجرا روی پورت ${PORT}`);
 });
