@@ -23,7 +23,7 @@ app.use(express.json());
 let chatHistory = [];
 
 io.on('connection', (socket) => {
-  console.log('کاربر متصل شد:', socket.id);
+  console.log('The user is connected:', socket.id);
   socket.emit('chat_history', chatHistory);
 
   socket.on('user_message', async (msg) => {
@@ -43,7 +43,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('The user desconnedted.', socket.id);
+    console.log('The user disconnedted.', socket.id);
   });
 });
 
