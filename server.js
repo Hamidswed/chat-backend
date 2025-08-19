@@ -36,16 +36,33 @@ io.on('connection', (socket) => {
         chat_id: TELEGRAM_USER_ID,
         text: msg,
       });
-      console.log('✅ پیام به تلگرام فرستاده شد');
+      console.log('✅ The message was sent to Telegram.');
     } catch (error) {
-      console.error('❌ خطا در ارسال به تلگرام:', error.response?.data || error.message);
+      console.error('❌ Error while sending message:', error.response?.data || error.message);
     }
   });
 
   socket.on('disconnect', () => {
-    console.log('کاربر قطع ارتباط داد:', socket.id);
+    console.log('The user desconnedted.', socket.id);
   });
 });
+
+// تنظیم webhook تلگرام
+const WEBHOOK_URL = 'https://chat-backend-3xpu.onrender.com/telegram-webhook';
+
+// تنظیم webhook در تلگرام
+async function setWebhook() {
+  try {
+    const response = await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`, {
+      url: WEBHOOK_URL
+    });
+    console.log('Webhook set successfully:', response.data);
+  } catch (error) {
+    console.error('Failed to set webhook:', error.response?.data || error.message);
+  }
+}
+
+setWebhook();
 
 app.post('/telegram-webhook', (req, res) => {
   const message = req.body.message;
@@ -53,12 +70,12 @@ app.post('/telegram-webhook', (req, res) => {
     const replyMsg = { from: 'admin', text: message.text };
     chatHistory.push(replyMsg);
     io.emit('new_message', replyMsg);
-    console.log('📩 پیام ادمین به چت ارسال شد');
+    console.log('📩 The message of Admin is sent.');
   }
   res.sendStatus(200);
 });
 
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
-  console.log(`✅ سرور در حال اجرا روی پورت ${PORT}`);
+  console.log(`✅ The server is runnig on port ${PORT}`);
 });
