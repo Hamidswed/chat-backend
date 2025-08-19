@@ -3,8 +3,8 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import axios from 'axios';
 
-const TELEGRAM_BOT_TOKEN = '8355451761:AAFFWcnLkpgnbcx3nWnc9_m8bsqvlRAGCT8';
-const TELEGRAM_USER_ID = 154972852;
+const TELEGRAM_BOT_TOKEN = process.env.BOT_TOKEN;
+const TELEGRAM_USER_ID = process.env.TELEGRAM_USER_ID
 
 const app = express();
 const server = createServer(app);
