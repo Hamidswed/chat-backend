@@ -20,6 +20,10 @@ const io = new Server(server, {
 
 app.use(express.json());
 
+app.get('/api', (req, res) => {
+  res.json({ status: 'Backend is running!' });
+});
+
 let chatHistory = [];
 
 io.on('connection', (socket) => {
