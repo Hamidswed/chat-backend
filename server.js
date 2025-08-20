@@ -169,11 +169,48 @@ async function setWebhook() {
 setWebhook();
 
 // دریافت پاسخ ادمین از تلگرام (اختیاری - اگر بخوای از تلگرام هم پاسخ بدی)
+// دریافت پاسخ ادمین از تلگرام
 app.post('/telegram-webhook', (req, res) => {
   const message = req.body.message;
   if (message && message.text && message.reply_to_message) {
-    console.log('📩 Admin replied via Telegram:', message.text);
-    // در اینجا می‌تونی Session ID رو از متن پیام بخونی و پاسخ بفرستی
+    const replyText = message.text.trim();
+    const originalText = message.reply_to_message.text;
+
+    // 🔍 استخراج Session ID از پیام اصلی
+    const sessionIdMatch = originalText.match(/Session ID: ([^\n]+)/);
+    if (!sessionIdMatch) {
+      console.log('❌ Session ID not found in original message');
+      return res.sendStatus(200);
+    }
+
+    const expectedSessionId = sessionIdMatch[1]; // مثلاً: sess-123456789
+    const room = `chat-${expectedSessionId}`;
+
+    // 🔍 چک کردن فرمت ریپلای: [chat-sess-...] متن پاسخ
+    const replyMatch = replyText.match(/^\[chat-([^\]]+)\](.*)/);
+    if (!replyMatch) {
+      console.log('❌ Reply must start with [chat-...] to be processed');
+      return res.sendStatus(200);
+    }
+
+    const extractedSessionId = replyMatch[1]; // باید برابر با expectedSessionId باشه
+
+    // ✅ تطابق Session ID
+    if (extractedSessionId !== expectedSessionId) {
+      console.log(`❌ Mismatch: expected ${expectedSessionId}, got ${extractedSessionId}`);
+      return res.sendStatus(200);
+    }
+
+    const actualReply = replyMatch[2].trim(); // متن واقعی پاسخ
+
+    // ✅ ارسال پاسخ به چت باکس کاربر
+    io.to(room).emit('new_message', {
+      from: 'admin',
+      text: actualReply,
+      timestamp: new Date().toISOString()
+    });
+
+    console.log(`✅ Admin reply sent to room: ${room}`);
   }
   res.sendStatus(200);
 });
