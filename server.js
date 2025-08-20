@@ -43,6 +43,8 @@ io.on('connection', (socket) => {
   // دریافت پیام کاربر
   socket.on('user_message', async (data) => {
     const { name, email, text } = data;
+    const sessionId = socket.handshake.auth.sessionId;
+    const room = `chat-${sessionId}`;
 
     // ایجاد پیام برای چت
     const userMsg = { from: 'user', text };
@@ -56,7 +58,7 @@ io.on('connection', (socket) => {
 
     // ارسال به تلگرام
     try {
-      const telegramMessage = `نام: ${name}\nایمیل: ${email}\nپیام: ${text}`;
+      const telegramMessage = `نام: ${name}\nایمیل: ${email}\nSession ID: ${sessionId}\nپیام: ${text}`;
       await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
         chat_id: TELEGRAM_USER_ID,
         text: telegramMessage
@@ -92,10 +94,22 @@ setWebhook();
 app.post('/telegram-webhook', (req, res) => {
   const message = req.body.message;
   if (message && message.text && message.reply_to_message) {
-    // شناسایی اتاق از طریق متن پاسخ (اختیاری: باید بهتر پیاده‌سازی بشه)
+
+     const fullText = message.text;
+
+     const sessionMatch = fullText.match(/\[(chat-[^\]]+)\]/);
+     if (!sessionMatch) {
+      console.log('No session ID found in admin reply');
+      return res.sendStatus(200);
+    }
+
+    const sessionId = sessionMatch[1];
+    const room = `chat-${sessionId}`;
+    const replyText = fullText.replace(/\[chat-[^\]]+\]\s*/, '');
+
     const replyMsg = { from: 'admin', text: message.text };
-    // در اینجا باید بفهمیم به کدام اتاق ارسال کنیم (نیاز به ذخیره session ID در تلگرام داره)
-    // برای سادگی، فعلاً فقط در لاگ نشون می‌دیم
+   
+    io.to(room).emit('new_message', replyMsg);
     console.log('📩 Admin replied:', message.text);
   }
   res.sendStatus(200);
