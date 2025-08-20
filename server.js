@@ -103,7 +103,7 @@ io.on('connection', (socket) => {
     return;
   }
 
-  const room = `chat-${sessionId}`;
+  const room = sessionId;
   socket.join(room);
   console.log(`User connected to room: ${room}`);
 
