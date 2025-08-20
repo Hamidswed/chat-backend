@@ -26,82 +26,73 @@ app.get('/api', (req, res) => {
 });
 
 // ذخیره تاریخچه چت بر اساس اتاق
+// server.js (بخش اصلاح‌شده)
+
+// ذخیره چت‌ها بر اساس اتاق
 const chatHistory = {};
 
+// متصل شدن ادمین
 io.on('connection', (socket) => {
+  const isAdmin = socket.handshake.auth.isAdmin;
+
+  if (isAdmin) {
+    console.log('ادمین متصل شد:', socket.id);
+
+    // ارسال تاریخچه به ادمین (اختیاری)
+    socket.emit('admin_current_chats', Object.values(chatHistory).flat());
+
+    // دریافت درخواست تاریخچه
+    socket.on('admin_request_history', (sessionId) => {
+      const room = `chat-${sessionId}`;
+      socket.emit('admin_chat_history', { sessionId, history: chatHistory[room] || [] });
+    });
+
+    // ارسال پاسخ ادمین
+    socket.on('admin_reply', async ({ sessionId, text }) => {
+      const room = `chat-${sessionId}`;
+      const replyMsg = { from: 'admin', text, timestamp: new Date().toISOString() };
+
+      // ارسال به کاربر
+      io.to(room).emit('new_message', replyMsg);
+
+      // ذخیره در تاریخچه
+      if (!chatHistory[room]) chatHistory[room] = [];
+      chatHistory[room].push(replyMsg);
+
+      console.log('📩 ادمین به کاربر پاسخ داد:', sessionId);
+    });
+
+    return;
+  }
+
+  // منطق کاربر عادی
   const sessionId = socket.handshake.auth.sessionId;
   const room = `chat-${sessionId}`;
-
-  // پیوستن به اتاق اختصاصی
   socket.join(room);
-  console.log('User connected to room:', room);
 
-  // ارسال تاریخچه اختصاصی
   const userHistory = chatHistory[room] || [];
   socket.emit('chat_history', userHistory);
 
-  // دریافت پیام کاربر
   socket.on('user_message', async (data) => {
     const { name, email, text } = data;
+    const userMsg = { from: 'user', text, timestamp: new Date().toISOString() };
 
-    // ایجاد پیام برای چت
-    const userMsg = { from: 'user', text };
-
-    // ذخیره در تاریخچه اتاق
     if (!chatHistory[room]) chatHistory[room] = [];
     chatHistory[room].push(userMsg);
-
-    // ارسال فقط به این اتاق
     io.to(room).emit('new_message', userMsg);
+
+    // ارسال به ادمین
+    io.emit('admin_new_message', { sessionId, name, email, text, timestamp: userMsg.timestamp });
 
     // ارسال به تلگرام
     try {
-      const telegramMessage = `نام: ${name}\nایمیل: ${email}\nپیام: ${text}`;
+      const telegramMessage = `نام: ${name}\nایمیل: ${email}\nSession ID: ${sessionId}\nپیام: ${text}`;
       await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
         chat_id: TELEGRAM_USER_ID,
         text: telegramMessage
       });
-      console.log('✅ Message sent to Telegram from:', name);
     } catch (error) {
-      console.error('❌ Error sending to Telegram:', error.message);
+      console.error('Error sending to Telegram:', error.message);
     }
   });
-
-  socket.on('disconnect', () => {
-    console.log('User disconnected from room:', room);
-  });
-});
-
-// تنظیم webhook تلگرام
-const WEBHOOK_URL = 'https://chat-backend-3xpu.onrender.com/telegram-webhook';
-
-async function setWebhook() {
-  try {
-    const response = await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`, {
-      url: WEBHOOK_URL
-    });
-    console.log('Webhook set successfully:', response.data);
-  } catch (error) {
-    console.error('Failed to set webhook:', error.response?.data || error.message);
-  }
-}
-
-setWebhook();
-
-// دریافت پاسخ ادمین از تلگرام
-app.post('/telegram-webhook', (req, res) => {
-  const message = req.body.message;
-  if (message && message.text && message.reply_to_message) {
-    // شناسایی اتاق از طریق متن پاسخ (اختیاری: باید بهتر پیاده‌سازی بشه)
-    const replyMsg = { from: 'admin', text: message.text };
-    // در اینجا باید بفهمیم به کدام اتاق ارسال کنیم (نیاز به ذخیره session ID در تلگرام داره)
-    // برای سادگی، فعلاً فقط در لاگ نشون می‌دیم
-    console.log('📩 Admin replied:', message.text);
-  }
-  res.sendStatus(200);
-});
-
-const PORT = process.env.PORT || 4000;
-server.listen(PORT, () => {
-  console.log(`✅ Server is running on port ${PORT}`);
 });
