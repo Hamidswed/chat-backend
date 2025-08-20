@@ -177,40 +177,38 @@ app.post('/telegram-webhook', (req, res) => {
     const originalText = message.reply_to_message.text;
 
     // 🔍 استخراج Session ID از پیام اصلی
-    const sessionIdMatch = originalText.match(/Session ID: ([^\n]+)/);
+    const sessionIdMatch = originalText.match(/Session ID: (chat-[^\n]+)/);
     if (!sessionIdMatch) {
       console.log('❌ Session ID not found in original message');
       return res.sendStatus(200);
     }
 
-    const expectedSessionId = sessionIdMatch[1]; // مثلاً: sess-123456789
-    const room = `chat-${expectedSessionId}`;
+    const expectedSessionId = sessionIdMatch[1]; // chat-zk0wjv31b
 
-    // 🔍 چک کردن فرمت ریپلای: [chat-sess-...] متن پاسخ
-    const replyMatch = replyText.match(/^\[chat-([^\]]+)\](.*)/);
+    // 🔍 چک کردن فرمت ریپلای
+    const replyMatch = replyText.match(/^\[([^\]]+)\](.*)/);
     if (!replyMatch) {
-      console.log('❌ Reply must start with [chat-...] to be processed');
+      console.log('❌ Reply must start with [chat-...]');
       return res.sendStatus(200);
     }
 
-    const extractedSessionId = replyMatch[1]; // باید برابر با expectedSessionId باشه
+    const extractedId = replyMatch[1]; // chat-zk0wjv31b
 
-    // ✅ تطابق Session ID
-    if (extractedSessionId !== expectedSessionId) {
-      console.log(`❌ Mismatch: expected ${expectedSessionId}, got ${extractedSessionId}`);
+    // ✅ تطابق کامل
+    if (extractedId !== expectedSessionId) {
+      console.log(`❌ Mismatch: expected ${expectedSessionId}, got ${extractedId}`);
       return res.sendStatus(200);
     }
 
-    const actualReply = replyMatch[2].trim(); // متن واقعی پاسخ
+    const actualReply = replyMatch[2].trim();
 
-    // ✅ ارسال پاسخ به چت باکس کاربر
-    io.to(room).emit('new_message', {
+    // ✅ ارسال به اتاق واقعی
+    io.to(expectedSessionId).emit('new_message', {
       from: 'admin',
-      text: actualReply,
-      timestamp: new Date().toISOString()
+      text: actualReply
     });
 
-    console.log(`✅ Admin reply sent to room: ${room}`);
+    console.log(`✅ Admin reply sent to room: ${expectedSessionId}`);
   }
   res.sendStatus(200);
 });
