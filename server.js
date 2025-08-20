@@ -6,6 +6,12 @@ import axios from 'axios';
 
 const TELEGRAM_BOT_TOKEN = process.env.BOT_TOKEN;
 const TELEGRAM_USER_ID = process.env.TELEGRAM_USER_ID;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD; // 🔐 امنیت ادمین
+
+if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_USER_ID) {
+  console.error('❌ BOT_TOKEN or TELEGRAM_USER_ID not set in .env');
+  process.exit(1);
+}
 
 const app = express();
 const server = createServer(app);
@@ -21,33 +27,49 @@ const io = new Server(server, {
 
 app.use(express.json());
 
+// ذخیره تاریخچه چت بر اساس اتاق
+const chatHistory = {};
+
+// ذخیره اتصال ادمین
+let adminSocket = null;
+
 app.get('/api', (req, res) => {
   res.json({ status: 'Backend is running!' });
 });
 
-// ذخیره تاریخچه چت بر اساس اتاق
-// server.js (بخش اصلاح‌شده)
-
-// ذخیره چت‌ها بر اساس اتاق
-const chatHistory = {};
-
-// متصل شدن ادمین
+// متصل شدن کاربر و ادمین
 io.on('connection', (socket) => {
-  const isAdmin = socket.handshake.auth.isAdmin;
+  const { isAdmin, password } = socket.handshake.auth;
 
+  // ✅ احراز هویت ادمین
   if (isAdmin) {
-    console.log('ادمین متصل شد:', socket.id);
+    if (!ADMIN_PASSWORD || password !== ADMIN_PASSWORD) {
+      socket.disconnect(true);
+      return;
+    }
 
-    // ارسال تاریخچه به ادمین (اختیاری)
-    socket.emit('admin_current_chats', Object.values(chatHistory).flat());
+    if (adminSocket) {
+      adminSocket.emit('admin_notification', 'Another admin connected. You are disconnected.');
+      adminSocket.disconnect();
+    }
 
-    // دریافت درخواست تاریخچه
-    socket.on('admin_request_history', (sessionId) => {
-      const room = `chat-${sessionId}`;
-      socket.emit('admin_chat_history', { sessionId, history: chatHistory[room] || [] });
-    });
+    adminSocket = socket;
+    console.log('✅ Admin connected:', socket.id);
 
-    // ارسال پاسخ ادمین
+    // ارسال لیست چت‌های اخیر
+    const recentChats = Object.entries(chatHistory).map(([room, history]) => {
+      const lastMsg = history[history.length - 1];
+      return {
+        sessionId: room.replace('chat-', ''),
+        name: lastMsg?.name || 'Unknown',
+        email: lastMsg?.email || 'Unknown',
+        lastMessage: lastMsg?.text,
+        timestamp: lastMsg?.timestamp
+      };
+    }).filter(Boolean).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    socket.emit('admin_recent_chats', recentChats);
+
     socket.on('admin_reply', async ({ sessionId, text }) => {
       const room = `chat-${sessionId}`;
       const replyMsg = { from: 'admin', text, timestamp: new Date().toISOString() };
@@ -59,40 +81,102 @@ io.on('connection', (socket) => {
       if (!chatHistory[room]) chatHistory[room] = [];
       chatHistory[room].push(replyMsg);
 
-      console.log('📩 ادمین به کاربر پاسخ داد:', sessionId);
+      console.log(`📩 Admin replied to session: ${sessionId}`);
+    });
+
+    socket.on('disconnect', () => {
+      if (socket.id === adminSocket?.id) {
+        adminSocket = null;
+        console.log('🔴 Admin disconnected');
+      }
     });
 
     return;
   }
 
-  // منطق کاربر عادی
+  // 🧑‍💻 منطق کاربر عادی
   const sessionId = socket.handshake.auth.sessionId;
+  if (!sessionId) {
+    socket.disconnect();
+    return;
+  }
+
   const room = `chat-${sessionId}`;
   socket.join(room);
+  console.log(`User connected to room: ${room}`);
 
+  // ارسال تاریخچه شخصی
   const userHistory = chatHistory[room] || [];
   socket.emit('chat_history', userHistory);
 
+  // دریافت پیام کاربر
   socket.on('user_message', async (data) => {
     const { name, email, text } = data;
-    const userMsg = { from: 'user', text, timestamp: new Date().toISOString() };
+    const userMsg = { from: 'user', text, name, email, timestamp: new Date().toISOString() };
 
+    // ذخیره در تاریخچه
     if (!chatHistory[room]) chatHistory[room] = [];
     chatHistory[room].push(userMsg);
+
+    // ارسال به کاربر
     io.to(room).emit('new_message', userMsg);
 
-    // ارسال به ادمین
-    io.emit('admin_new_message', { sessionId, name, email, text, timestamp: userMsg.timestamp });
+    // ✅ ارسال به ادمین فقط اگر متصل باشه
+    if (adminSocket) {
+      adminSocket.emit('admin_new_message', {
+        sessionId,
+        name,
+        email,
+        text,
+        timestamp: userMsg.timestamp
+      });
+    }
 
-    // ارسال به تلگرام
+    // ✅ ارسال به تلگرام (بدون اسپیس اضافه)
     try {
       const telegramMessage = `نام: ${name}\nایمیل: ${email}\nSession ID: ${sessionId}\nپیام: ${text}`;
       await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
         chat_id: TELEGRAM_USER_ID,
         text: telegramMessage
       });
+      console.log('✅ Message sent to Telegram from:', name);
     } catch (error) {
-      console.error('Error sending to Telegram:', error.message);
+      console.error('❌ Error sending to Telegram:', error.message);
     }
   });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected from room:', room);
+  });
+});
+
+// تنظیم webhook تلگرام
+const WEBHOOK_URL = 'https://chat-backend-3xpu.onrender.com/telegram-webhook';
+
+async function setWebhook() {
+  try {
+    const response = await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`, {
+      url: WEBHOOK_URL
+    });
+    console.log('✅ Webhook set successfully:', response.data);
+  } catch (error) {
+    console.error('❌ Failed to set webhook:', error.response?.data || error.message);
+  }
+}
+
+setWebhook();
+
+// دریافت پاسخ ادمین از تلگرام (اختیاری - اگر بخوای از تلگرام هم پاسخ بدی)
+app.post('/telegram-webhook', (req, res) => {
+  const message = req.body.message;
+  if (message && message.text && message.reply_to_message) {
+    console.log('📩 Admin replied via Telegram:', message.text);
+    // در اینجا می‌تونی Session ID رو از متن پیام بخونی و پاسخ بفرستی
+  }
+  res.sendStatus(200);
+});
+
+const PORT = process.env.PORT || 4000;
+server.listen(PORT, () => {
+  console.log(`✅ Server is running on port ${PORT}`);
 });
