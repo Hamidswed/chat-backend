@@ -10,7 +10,7 @@
     body { @apply bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200; }
     .chat-box { @apply h-64 overflow-y-auto p-3 space-y-3; }
     .msg-user { @apply bg-blue-100 dark:bg-blue-900 text-gray-800 dark:text-white rounded-lg px-4 py-2 max-w-xs ml-auto; }
-    .msg-admin { @apply bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg px-4 py-2 max-w-xs mr-auto; }
+    .msg-admin { @apply bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-lg px-4 py-2 max-w-xs mr-auto; }
   </style>
 </head>
 <body class="p-6">
@@ -37,79 +37,26 @@
     </div>
   </div>
 
- <script>
-  let socket = null;
-  let selectedSessionId = null;
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const password = urlParams.get('pass');
 
-  // نمایش فرم ورود
-  function showLogin() {
-    document.body.innerHTML = `
-      <div class="flex items-center justify-center min-h-screen bg-gray-100">
-        <div class="bg-white p-8 rounded-xl shadow-lg w-80">
-          <h2 class="text-xl font-bold mb-4">Admin Login</h2>
-          <input 
-            id="passwordInput" 
-            type="password" 
-            placeholder="Enter password" 
-            class="w-full p-2 border rounded mb-4"
-          />
-          <button 
-            onclick="login()" 
-            class="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Login
-          </button>
-        </div>
-      </div>
-    `;
-  }
-
-  function login() {
-    const password = document.getElementById('passwordInput').value;
-    if (!password) return alert('Please enter password');
-
-    socket = io('https://chat-backend-3xpu.onrender.com', {
+    if (!password) {
+    window.location.href = 'login.html';
+    exit;
+    }
+    const socket = io('https://chat-backend-3xpu.onrender.com', {
       auth: {
         isAdmin: true,
-        password: password
+        password: password // ✅ رمز واقعی خودت رو اینجا وارد کن
       }
     });
 
+    let selectedSessionId = null;
+
     socket.on('connect', () => {
-      showAdminPanel();
+      console.log('✅ Admin connected');
     });
-
-    socket.on('connect_error', (err) => {
-      alert('Wrong password or connection error: ' + err.message);
-      console.error(err);
-    });
-  }
-
-  function showAdminPanel() {
-    document.body.innerHTML = `
-      <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mt-6">
-        <h1 class="text-2xl font-bold mb-4 text-center">💬 Admin Panel</h1>
-        
-        <div id="chatList" class="mb-4 space-y-2"></div>
-
-        <div id="replySection" class="hidden border-t pt-4">
-          <h3 id="replyTo" class="font-semibold"></h3>
-          <div id="userChat" class="chat-box border-b pb-2 mb-2"></div>
-          <textarea
-            id="adminReply"
-            placeholder="پاسخ خود را بنویسید..."
-            class="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows="3"
-          ></textarea>
-          <button
-            onclick="sendReply()"
-            class="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            ارسال پاسخ
-          </button>
-        </div>
-      </div>
-    `;
 
     socket.on('admin_new_message', (data) => {
       const { sessionId, name, email, text, timestamp } = data;
@@ -125,31 +72,27 @@
       chatItem.onclick = () => openChat(sessionId, name, email);
       document.getElementById('chatList').prepend(chatItem);
     });
-  }
 
-  function openChat(sessionId, name, email) {
-    selectedSessionId = sessionId;
-    document.getElementById('replyTo').textContent = `پاسخ به: ${name} (${email})`;
-    document.getElementById('userChat').innerHTML = '';
-    document.getElementById('adminReply').value = '';
-    document.getElementById('replySection').classList.remove('hidden');
-    socket.emit('admin_request_history', sessionId);
-  }
+    function openChat(sessionId, name, email) {
+      selectedSessionId = sessionId;
+      document.getElementById('replyTo').textContent = `پاسخ به: ${name} (${email})`;
+      document.getElementById('userChat').innerHTML = '';
+      document.getElementById('adminReply').value = '';
+      document.getElementById('replySection').classList.remove('hidden');
+      socket.emit('admin_request_history', sessionId);
+    }
 
-  function sendReply() {
-    const reply = document.getElementById('adminReply').value.trim();
-    if (!reply || !selectedSessionId) return;
-    socket.emit('admin_reply', { sessionId: selectedSessionId, text: reply });
-    const userChat = document.getElementById('userChat');
-    const msg = document.createElement('div');
-    msg.className = 'msg-admin';
-    msg.textContent = reply;
-    userChat.appendChild(msg);
-    document.getElementById('adminReply').value = '';
-  }
-
-  // نمایش فرم ورود وقتی صفحه باز میشه
-  showLogin();
-</script>
+    function sendReply() {
+      const reply = document.getElementById('adminReply').value.trim();
+      if (!reply || !selectedSessionId) return;
+      socket.emit('admin_reply', { sessionId: selectedSessionId, text: reply });
+      const userChat = document.getElementById('userChat');
+      const msg = document.createElement('div');
+      msg.className = 'msg-admin';
+      msg.textContent = reply;
+      userChat.appendChild(msg);
+      document.getElementById('adminReply').value = '';
+    }
+  </script>
 </body>
 </html>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Login</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body { @apply bg-gray-100 dark:bg-gray-900 flex items-center justify-center min-h-screen; }
+    .login-box { @apply bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-80 text-center; }
+    input { @apply w-full p-2 mb-4 border rounded; }
+    button { @apply w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700; }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h2 class="text-xl font-bold mb-4">ورود به پنل ادمین</h2>
+    <input type="password" id="password" placeholder="رمز عبور" class="dark:bg-gray-700 dark:border-gray-600" />
+    <button onclick="login()">ورود</button>
+  </div>
+
+  <script>
+    function login() {
+      const password = document.getElementById('password').value;
+      if (!password) return alert('لطفاً رمز عبور را وارد کنید');
+
+      // بررسی اولیه رمز عبور (اختیاری)
+      // در عمل، این کار باید در سرور انجام شود
+      window.location.href = `index.html?pass=${encodeURIComponent(password)}`;
+    }
+  </script>
+</body>
+</html>
