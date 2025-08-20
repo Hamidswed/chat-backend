@@ -25,39 +25,50 @@ app.get('/api', (req, res) => {
   res.json({ status: 'Backend is running!' });
 });
 
-let chatHistory = [];
+// ذخیره تاریخچه چت بر اساس اتاق
+const chatHistory = {};
 
 io.on('connection', (socket) => {
-  console.log('The user is connected:', socket.id);
-  socket.emit('chat_history', chatHistory);
+  const sessionId = socket.handshake.auth.sessionId;
+  const room = `chat-${sessionId}`;
 
-  // ✅ دریافت پیام کاربر همراه با نام و ایمیل
+  // پیوستن به اتاق اختصاصی
+  socket.join(room);
+  console.log('User connected to room:', room);
+
+  // ارسال تاریخچه اختصاصی
+  const userHistory = chatHistory[room] || [];
+  socket.emit('chat_history', userHistory);
+
+  // دریافت پیام کاربر
   socket.on('user_message', async (data) => {
     const { name, email, text } = data;
 
-    // ایجاد متن پیام برای تلگرام
-    const telegramMessage = `نام: ${name}\nایمیل: ${email}\nپیام: ${text}`;
+    // ایجاد پیام برای چت
+    const userMsg = { from: 'user', text };
 
-    // ذخیره پیام کاربر در چت
-    const userMsg = { from: 'user', text, name, email }; // اختیاری: نام و ایمیل در چت هم نمایش داده شود
-    chatHistory.push(userMsg);
-    io.emit('new_message', userMsg);
+    // ذخیره در تاریخچه اتاق
+    if (!chatHistory[room]) chatHistory[room] = [];
+    chatHistory[room].push(userMsg);
 
+    // ارسال فقط به این اتاق
+    io.to(room).emit('new_message', userMsg);
+
+    // ارسال به تلگرام
     try {
-      // ✅ ارسال به تلگرام با API
+      const telegramMessage = `نام: ${name}\nایمیل: ${email}\nپیام: ${text}`;
       await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
         chat_id: TELEGRAM_USER_ID,
-        text: telegramMessage,
-        parse_mode: 'HTML' // اختیاری: برای فرمت بهتر
+        text: telegramMessage
       });
-      console.log('✅ The message was sent to Telegram with user info.');
+      console.log('✅ Message sent to Telegram from:', name);
     } catch (error) {
-      console.error('❌ Error while sending message to Telegram:', error.response?.data || error.message);
+      console.error('❌ Error sending to Telegram:', error.message);
     }
   });
 
   socket.on('disconnect', () => {
-    console.log('The user disconnected.', socket.id);
+    console.log('User disconnected from room:', room);
   });
 });
 
@@ -81,15 +92,16 @@ setWebhook();
 app.post('/telegram-webhook', (req, res) => {
   const message = req.body.message;
   if (message && message.text && message.reply_to_message) {
+    // شناسایی اتاق از طریق متن پاسخ (اختیاری: باید بهتر پیاده‌سازی بشه)
     const replyMsg = { from: 'admin', text: message.text };
-    chatHistory.push(replyMsg);
-    io.emit('new_message', replyMsg);
-    console.log('📩 The message from Admin is sent to client.');
+    // در اینجا باید بفهمیم به کدام اتاق ارسال کنیم (نیاز به ذخیره session ID در تلگرام داره)
+    // برای سادگی، فعلاً فقط در لاگ نشون می‌دیم
+    console.log('📩 Admin replied:', message.text);
   }
   res.sendStatus(200);
 });
 
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
-  console.log(`✅ The server is running on port ${PORT}`);
+  console.log(`✅ Server is running on port ${PORT}`);
 });
