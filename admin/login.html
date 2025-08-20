@@ -7,27 +7,81 @@
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
-    body { @apply bg-gray-100 dark:bg-gray-900 flex items-center justify-center min-h-screen; }
-    .login-box { @apply bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-80 text-center; }
-    input { @apply w-full p-2 mb-4 border rounded; }
-    button { @apply w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      @apply bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 min-h-screen flex items-center justify-center p-4 font-sans;
+      font-family: 'Inter', sans-serif;
+    }
+    .login-card {
+      @apply bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border dark:border-gray-700;
+    }
+    .input-group {
+      @apply relative mt-4;
+    }
+    .input-group input {
+      @apply w-full p-3 pl-12 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300;
+    }
+    .input-group svg {
+      @apply absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500;
+    }
+    .btn-primary {
+      @apply w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-300 mt-6 transform hover:scale-105;
+    }
+    .logo {
+      @apply text-2xl font-bold text-center mb-6 bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent;
+    }
+    .error {
+      @apply text-red-500 text-sm mt-2 text-center;
+    }
   </style>
 </head>
 <body>
-  <div class="login-box">
-    <h2 class="text-xl font-bold mb-4">ورود به پنل ادمین</h2>
-    <input type="password" id="password" placeholder="رمز عبور" class="dark:bg-gray-700 dark:border-gray-600" />
-    <button onclick="login()">ورود</button>
+  <div class="login-card">
+    <h2 class="logo">💬 Admin Panel</h2>
+    <p class="text-center text-gray-600 dark:text-gray-300 mb-6">برای مدیریت چت وارد شوید</p>
+
+    <div class="input-group">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+      <input type="password" id="adminPass" placeholder="رمز عبور" autocomplete="off" />
+    </div>
+
+    <div id="error" class="error hidden"></div>
+
+    <button onclick="login()" class="btn-primary">ورود به پنل</button>
   </div>
 
   <script>
     function login() {
-      const password = document.getElementById('password').value;
-      if (!password) return alert('لطفاً رمز عبور را وارد کنید');
+      const password = document.getElementById('adminPass').value;
+      const errorEl = document.getElementById('error');
 
-      // بررسی اولیه رمز عبور (اختیاری)
-      // در عمل، این کار باید در سرور انجام شود
-      window.location.href = `index.html?pass=${encodeURIComponent(password)}`;
+      if (!password) {
+        showError('لطفاً رمز عبور را وارد کنید');
+        return;
+      }
+
+      // اتصال به سوکت با رمز
+      const socket = io('https://chat-backend-3xpu.onrender.com', {
+        auth: { isAdmin: true, password: password }
+      });
+
+      socket.on('connect', () => {
+        // ذخیره رمز در session (اختیاری)
+        localStorage.setItem('adminPassword', password);
+        window.location.href = 'index.html';
+      });
+
+      socket.on('connect_error', (err) => {
+        showError('رمز عبور اشتباه است یا سرور در دسترس نیست.');
+        console.error('Connect error:', err);
+      });
+
+      function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.classList.remove('hidden');
+      }
     }
   </script>
 </body>

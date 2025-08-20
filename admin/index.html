@@ -1,85 +1,111 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fa">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Chat Admin Panel</title>
+  <title>Admin Panel</title>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
-    body { @apply bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200; }
-    .chat-box { @apply h-64 overflow-y-auto p-3 space-y-3; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      @apply bg-gray-100 dark:bg-gray-900 font-sans;
+      font-family: 'Inter', sans-serif;
+    }
     .msg-user { @apply bg-blue-100 dark:bg-blue-900 text-gray-800 dark:text-white rounded-lg px-4 py-2 max-w-xs ml-auto; }
     .msg-admin { @apply bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-lg px-4 py-2 max-w-xs mr-auto; }
+    .chat-box { @apply h-64 overflow-y-auto p-3 space-y-3; }
+    .user-item { @apply p-3 bg-white dark:bg-gray-700 rounded-lg shadow hover:shadow-md cursor-pointer border border-gray-200 dark:border-gray-600 transition-all; }
   </style>
 </head>
 <body class="p-6">
-  <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-    <h1 class="text-2xl font-bold mb-4 text-center">💬 Admin Panel</h1>
-    
-    <div id="chatList" class="mb-4 space-y-2"></div>
+  <div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+    <div class="p-4 bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
+      <h1 class="text-xl font-bold text-center text-gray-800 dark:text-white">💬 پنل مدیریت چت</h1>
+    </div>
 
-    <div id="replySection" class="hidden border-t pt-4">
-      <h3 id="replyTo" class="font-semibold"></h3>
-      <div id="userChat" class="chat-box border-b pb-2 mb-2"></div>
-      <textarea
-        id="adminReply"
-        placeholder="پاسخ خود را بنویسید..."
-        class="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        rows="3"
-      ></textarea>
-      <button
-        onclick="sendReply()"
-        class="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-      >
-        ارسال پاسخ
-      </button>
+    <div class="flex h-96">
+      <!-- لیست کاربران -->
+      <div class="w-1/3 bg-gray-50 dark:bg-gray-700 border-r dark:border-gray-600 p-3 overflow-y-auto" id="chatList">
+        <p class="text-center text-gray-500 dark:text-gray-400 text-sm">در حال بارگذاری...</p>
+      </div>
+
+      <!-- بخش پاسخ -->
+      <div class="w-2/3 flex flex-col">
+        <div class="p-4" id="replySection">
+          <h3 id="replyTo" class="font-semibold text-gray-800 dark:text-white"></h3>
+          <div id="userChat" class="chat-box border-b pb-2 mb-2"></div>
+          <textarea
+            id="adminReply"
+            placeholder="پاسخ خود را بنویسید..."
+            class="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            rows="3"
+          ></textarea>
+          <button
+            onclick="sendReply()"
+            class="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+          >
+            ارسال
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const password = urlParams.get('pass');
-
-    if (!password) {
-    window.location.href = 'login.html';
-    exit;
-    }
     const socket = io('https://chat-backend-3xpu.onrender.com', {
-      auth: {
-        isAdmin: true,
-        password: password // ✅ رمز واقعی خودت رو اینجا وارد کن
-      }
+      auth: { isAdmin: true, password: localStorage.getItem('adminPassword') || 'default' }
     });
 
     let selectedSessionId = null;
 
     socket.on('connect', () => {
-      console.log('✅ Admin connected');
+      console.log('✅ ادمین متصل شد');
+    });
+
+    socket.on('admin_recent_chats', (chats) => {
+      const chatList = document.getElementById('chatList');
+      chatList.innerHTML = '';
+      if (chats.length === 0) {
+        chatList.innerHTML = '<p class="text-center text-gray-500">چتی وجود ندارد</p>';
+        return;
+      }
+      chats.forEach(chat => {
+        const el = document.createElement('div');
+        el.className = 'user-item';
+        el.innerHTML = `
+          <div class="flex justify-between text-sm text-gray-500">
+            <span>${chat.name}</span>
+            <span>${new Date(chat.timestamp).toLocaleTimeString()}</span>
+          </div>
+          <p class="mt-1 text-gray-800 dark:text-gray-200 truncate">${chat.lastMessage}</p>
+        `;
+        el.onclick = () => openChat(chat.sessionId, chat.name, chat.email);
+        chatList.appendChild(el);
+      });
     });
 
     socket.on('admin_new_message', (data) => {
-      const { sessionId, name, email, text, timestamp } = data;
-      const chatItem = document.createElement('div');
-      chatItem.className = 'p-3 bg-white dark:bg-gray-700 rounded-lg shadow hover:shadow-md cursor-pointer border';
-      chatItem.innerHTML = `
+      const chatList = document.getElementById('chatList');
+      const el = document.createElement('div');
+      el.className = 'user-item border-l-4 border-l-blue-500';
+      el.innerHTML = `
         <div class="flex justify-between text-sm text-gray-500">
-          <span>${name} (${email})</span>
-          <span>${new Date(timestamp).toLocaleTimeString()}</span>
+          <span>${data.name}</span>
+          <span>${new Date(data.timestamp).toLocaleTimeString()}</span>
         </div>
-        <p class="mt-1 text-gray-800 dark:text-gray-200">${text}</p>
+        <p class="mt-1 text-gray-800 dark:text-gray-200 truncate">${data.text}</p>
       `;
-      chatItem.onclick = () => openChat(sessionId, name, email);
-      document.getElementById('chatList').prepend(chatItem);
+      el.onclick = () => openChat(data.sessionId, data.name, data.email);
+      chatList.prepend(el);
     });
 
     function openChat(sessionId, name, email) {
       selectedSessionId = sessionId;
-      document.getElementById('replyTo').textContent = `پاسخ به: ${name} (${email})`;
+      document.getElementById('replyTo').textContent = `پاسخ به: ${name}`;
       document.getElementById('userChat').innerHTML = '';
       document.getElementById('adminReply').value = '';
-      document.getElementById('replySection').classList.remove('hidden');
-      socket.emit('admin_request_history', sessionId);
+      document.getElementById('replySection').style.display = 'block';
     }
 
     function sendReply() {
