@@ -6,7 +6,6 @@ import axios from 'axios';
 
 const TELEGRAM_BOT_TOKEN = process.env.BOT_TOKEN;
 const TELEGRAM_USER_ID = process.env.TELEGRAM_USER_ID;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD; // 🔐 امنیت ادمین
 
 if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_USER_ID) {
   console.error('❌ BOT_TOKEN or TELEGRAM_USER_ID not set in .env');
