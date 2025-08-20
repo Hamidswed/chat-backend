@@ -39,8 +39,10 @@
 
   <script>
     const socket = io('https://chat-backend-3xpu.onrender.com', {
-      path: '/socket.io',
-      auth: { isAdmin: true }
+      auth: {
+        isAdmin: true,
+        password: process.env.ADMIN_PASSWORD
+      }
     });
 
     let selectedSessionId = null;
