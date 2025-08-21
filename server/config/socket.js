@@ -23,12 +23,15 @@ export default function setupSocket(server,app) {
   // اتصال کاربران
   // io.use(authenticateAdmin).on('connection', handleAdminConnection);
   // io.on('connection', handleUserConnection);
-   io.use(authenticateAdmin).on('connection', (socket) => {
-    handleAdminConnection(socket, io); // ✅ io هم منتقل شه
+  io.use(authenticateAdmin).on('connection', (socket) => {
+    console.log('✅ Admin connected:', socket.id);
+    handleAdminConnection(socket, io);
   });
-
   // ✅ اتصال کاربر عادی
   io.on('connection', (socket) => {
-    handleUserConnection(socket, io); // ✅ io هم منتقل شه
+  // ✅ فقط اگر isAdmin نباشه
+    if (!socket.decoded?.admin) {
+      handleUserConnection(socket, io);
+    }
   });
 }
