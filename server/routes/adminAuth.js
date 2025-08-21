@@ -9,6 +9,7 @@ const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
 
 router.post('/login', (req, res) => {
   const { password } = req.body;
+  console.log(password,"password")
   if (!ADMIN_PASSWORD || password !== ADMIN_PASSWORD) {
     return res.status(401).json({ error: 'Invalid password' });
   }
