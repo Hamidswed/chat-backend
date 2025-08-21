@@ -7,7 +7,7 @@ const router = express.Router();
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
 
-router.post('/login', (req, res) => {
+router.post('/admin/login', (req, res) => {
   const { password } = req.body;
   console.log(password,"password")
   if (!ADMIN_PASSWORD || password !== ADMIN_PASSWORD) {
