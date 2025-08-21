@@ -4,7 +4,7 @@
   "homepage": "https://hdelshad.com/",
   "version": "0.0.0",
   "type": "module",
-  "main": "server.js",
+  "main": "server/index.js"
   "scripts": {
     "dev": "vite",
     "start": "node server.js",
@@ -17,6 +17,7 @@
     "axios": "^1.6.5",
     "body-parser": "^2.2.0",
     "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-icons": "^5.1.0",

@@ -3,10 +3,12 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import axios from 'axios';
+import jwt from 'jsonwebtoken';
 
 const TELEGRAM_BOT_TOKEN = process.env.BOT_TOKEN;
 const TELEGRAM_USER_ID = process.env.TELEGRAM_USER_ID;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD; // 🔐 امنیت ادمین
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD; 
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET
 
 if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_USER_ID) {
   console.error('❌ BOT_TOKEN or TELEGRAM_USER_ID not set in .env');
@@ -28,6 +30,63 @@ const io = new Server(server, {
 app.use(express.json());
 
 app.use('/admin', express.static('admin'));
+
+app.post('/api/admin/login', (req, res) => {
+  const { password } = req.body;
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+  if (!ADMIN_PASSWORD || password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Invalid password' });
+  }
+
+  const token = jwt.sign({ admin: true }, ADMIN_JWT_SECRET, { expiresIn: '24h' });
+  res.json({ token });
+});
+
+function authenticateAdmin(socket, next) {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Authentication error'));
+  }
+
+  jwt.verify(token, ADMIN_JWT_SECRET, (err, decoded) => {
+    if (err) return next(new Error('Authentication error'));
+    socket.decoded = decoded;
+    next();
+  });
+}
+
+io.use(authenticateAdmin).on('connection', (socket) => {
+  console.log('✅ Admin connected:', socket.id);
+
+  // ارسال لیست چت‌های اخیر
+  const recentChats = Object.entries(chatHistory).map(([room, history]) => {
+    const lastMsg = history[history.length - 1];
+    return {
+      sessionId: room.replace('chat-', ''),
+      name: lastMsg?.name || 'Unknown',
+      email: lastMsg?.email || 'Unknown',
+      lastMessage: lastMsg?.text,
+      timestamp: lastMsg?.timestamp
+    };
+  }).filter(Boolean).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  socket.emit('admin_recent_chats', recentChats);
+
+  socket.on('admin_reply', async ({ sessionId, text }) => {
+    const room = `chat-${sessionId}`;
+    const replyMsg = { from: 'admin', text, timestamp: new Date().toISOString() };
+
+    io.to(room).emit('new_message', replyMsg);
+    if (!chatHistory[room]) chatHistory[room] = [];
+    chatHistory[room].push(replyMsg);
+    console.log(`📩 Admin replied to session: ${sessionId}`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Admin disconnected');
+  });
+});
 
 // ذخیره تاریخچه چت بر اساس اتاق
 const chatHistory = {};
