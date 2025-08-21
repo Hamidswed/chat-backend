@@ -4,7 +4,7 @@
   "homepage": "https://hdelshad.com/",
   "version": "0.0.0",
   "type": "module",
-  "main": "server/index.js"
+  "main": "server/index.js",
   "scripts": {
     "dev": "vite",
     "start": "node server.js",
