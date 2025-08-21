@@ -15,6 +15,7 @@ export const handleUserConnection = (socket) => {
   socket.emit('chat_history', getChatHistory(sessionId));
 
   socket.on('user_message', async (data) => {
+    console.log('📩 SERVER received user_message:', data);
     const { name, email, text } = data;
     const userMsg = { from: 'user', text, name, email, timestamp: new Date().toISOString() };
 
