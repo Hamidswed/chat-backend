@@ -1,8 +1,18 @@
 // server/app.js
 import express from 'express';
 import adminAuthRouter from './routes/adminAuth.js';
+import cors from 'cors';
 
 const app = express();
+
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "https://hdelshad.com"
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "OPTIONS"]
+}));
 
 // Middlewareهای ضروری
 app.use(express.json());
