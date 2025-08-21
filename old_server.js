@@ -74,7 +74,8 @@ io.use(authenticateAdmin).on('connection', (socket) => {
   socket.emit('admin_recent_chats', recentChats);
 
   socket.on('admin_reply', async ({ sessionId, text }) => {
-    const room = `chat-${sessionId}`;
+    // const room = `chat-${sessionId}`;
+    const room = sessionId;
     const replyMsg = { from: 'admin', text, timestamp: new Date().toISOString() };
 
     io.to(room).emit('new_message', replyMsg);
@@ -132,7 +133,8 @@ io.on('connection', (socket) => {
     socket.emit('admin_recent_chats', recentChats);
 
     socket.on('admin_reply', async ({ sessionId, text }) => {
-      const room = `chat-${sessionId}`;
+      // const room = `chat-${sessionId}`;
+      const room = sessionId;
       const replyMsg = { from: 'admin', text, timestamp: new Date().toISOString() };
 
       // ارسال به کاربر
