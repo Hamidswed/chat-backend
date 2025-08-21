@@ -18,9 +18,17 @@ export default function setupSocket(server,app) {
    globalThis.io = io;
 
   // تنظیم Webhook تلگرام
-  setupTelegramWebhook(app);//io.httpServer
+  setupTelegramWebhook(app, io);//io.httpServer
 
   // اتصال کاربران
-  io.use(authenticateAdmin).on('connection', handleAdminConnection);
-  io.on('connection', handleUserConnection);
+  // io.use(authenticateAdmin).on('connection', handleAdminConnection);
+  // io.on('connection', handleUserConnection);
+   io.use(authenticateAdmin).on('connection', (socket) => {
+    handleAdminConnection(socket, io); // ✅ io هم منتقل شه
+  });
+
+  // ✅ اتصال کاربر عادی
+  io.on('connection', (socket) => {
+    handleUserConnection(socket, io); // ✅ io هم منتقل شه
+  });
 }
