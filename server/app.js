@@ -16,6 +16,7 @@ app.use(cors({
 
 // Middlewareهای ضروری
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // روت ورود ادمین
 app.use('/api/admin', adminAuthRouter);

@@ -38,10 +38,8 @@ export const handleUserConnection = (socket, io) => {
     // ارسال به تلگرام
     await sendToTelegram(name, email, sessionId, text);
 
-    // ارسال به ادمین (اگر متصل باشد)
-    // فرض میکنیم adminSocket در adminHandler.js مدیریت میشه و از طریق io نیازی به ذخیره جدا نیست
-    // اما اگر ادمین در اتاق خاصی باشه، میتونیم از io.emit یا اتاق استفاده کنیم
-    io.emit('admin_new_message', {
+    // ارسال اعلان به ادمین‌ها (فقط روم ادمین‌ها)
+    io.to('admins').emit('admin_new_message', {
       sessionId,
       name,
       email,

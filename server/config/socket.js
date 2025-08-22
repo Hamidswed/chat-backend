@@ -20,17 +20,15 @@ export default function setupSocket(server,app) {
   // تنظیم Webhook تلگرام
   setupTelegramWebhook(app, io);//io.httpServer
 
-  // اتصال کاربران
-  // io.use(authenticateAdmin).on('connection', handleAdminConnection);
-  // io.on('connection', handleUserConnection);
-  io.use(authenticateAdmin).on('connection', (socket) => {
-    console.log('✅ Admin connected:', socket.id);
-    handleAdminConnection(socket, io);
-  });
-  // ✅ اتصال کاربر عادی
+  // یک نقطه اتصال با میدلور احراز هویت اختیاری
+  io.use(authenticateAdmin);
+
   io.on('connection', (socket) => {
-  // ✅ فقط اگر isAdmin نباشه
-    if (!socket.decoded?.admin) {
+    if (socket.decoded?.admin) {
+      // فقط ادمین‌های تاییدشده
+      handleAdminConnection(socket, io);
+    } else {
+      // کاربران عادی
       handleUserConnection(socket, io);
     }
   });

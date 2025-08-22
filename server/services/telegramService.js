@@ -1,6 +1,7 @@
 /* eslint-disable no-undef */
 // server/services/telegramService.js
 import axios from 'axios';
+import { addMessageToChat } from '../utils/chatHistory.js';
 
 const TELEGRAM_BOT_TOKEN = process.env.BOT_TOKEN;
 const TELEGRAM_USER_ID = process.env.TELEGRAM_USER_ID;
@@ -30,7 +31,7 @@ export const sendToTelegram = async (name, email, sessionId, text) => {
  * @param {Object} io - سرور Socket.IO
  */
 export const setupTelegramWebhook = (app, io) => {
-  const HOST = process.env.HOST;
+  const HOST = process.env.HOST || process.env.PUBLIC_URL;
 
   // ✅ چک کردن HOST — فقط در محیط عمومی (مثل Render) اجرا شود
   if (!HOST) {
@@ -56,10 +57,15 @@ export const setupTelegramWebhook = (app, io) => {
   // ✅ دریافت پاسخ ادمین از تلگرام (ریپلای)
   app.post('/telegram-webhook', (req, res) => {
     try {
-      const message = req.body.message;
-      if (message && message.text && message.reply_to_message) {
-        const replyText = message.text.trim();
-        const originalText = message.reply_to_message.text;
+      const message = req.body?.message;
+      if (!message) {
+        console.log('⚠️ No message in webhook body');
+        return res.sendStatus(200);
+      }
+
+      if (message.text && message.reply_to_message) {
+        const replyText = (message.text || '').trim();
+        const originalText = message.reply_to_message.text || '';
 
         // ✅ استخراج Session ID از پیام اصلی
         const sessionIdMatch = originalText.match(/Session ID: (chat-[^\n]+)/);
@@ -68,33 +74,35 @@ export const setupTelegramWebhook = (app, io) => {
           return res.sendStatus(200);
         }
 
-        const expectedSessionId = sessionIdMatch[1]; // مثلاً: chat-abc123
+        const sessionId = sessionIdMatch[1]; // مثلاً: chat-abc123
 
-        // ✅ چک کردن فرمت ریپلای: [chat-abc123] پاسخ
-        const replyMatch = replyText.match(/^\[([^\]]+)\](.*)/);
-        if (!replyMatch) {
-          console.log('❌ Reply must start with [chat-...]');
-          return res.sendStatus(200);
-        }
-
-        const extractedId = replyMatch[1];
-        if (extractedId !== expectedSessionId) {
-          console.log(`❌ Mismatch: expected ${expectedSessionId}, got ${extractedId}`);
-          return res.sendStatus(200);
-        }
-
-        const actualReply = replyMatch[2].trim();
+        // ✅ متن پاسخ ادمین همان متن پیام ریپلای است
+        const actualReply = replyText;
 
         // ✅ ارسال پاسخ به چت باکس کاربر
-        if (io && io.to(expectedSessionId)) {
-          io.to(expectedSessionId).emit('new_message', {
+        if (io && io.to(sessionId)) {
+          const replyMsg = {
             from: 'admin',
             text: actualReply,
             timestamp: new Date().toISOString()
+          };
+
+          // ارسال به اتاق کاربر
+          io.to(sessionId).emit('new_message', replyMsg);
+
+          // ذخیره در تاریخچه
+          addMessageToChat(sessionId, replyMsg);
+
+          // اطلاع‌رسانی به پنل ادمین برای آپدیت لیست چت‌ها (فقط روم ادمین‌ها)
+          io.to('admins').emit('admin_chats_update', {
+            sessionId,
+            lastMessage: replyMsg.text,
+            timestamp: replyMsg.timestamp
           });
-          console.log(`✅ Admin reply sent to room: ${expectedSessionId}`);
+
+          console.log(`✅ Admin reply sent to room: ${sessionId}`);
         } else {
-          console.warn(`⚠️ Room ${expectedSessionId} not found or io not available`);
+          console.warn(`⚠️ Room ${sessionId} not found or io not available`);
         }
       }
       res.sendStatus(200);
