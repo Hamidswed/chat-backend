@@ -20,13 +20,14 @@ export const handleUserConnection = (socket, io) => {
 
   // دریافت پیام کاربر
   socket.on('user_message', async (data) => {
-    const { name, email, text } = data;
+    const { name, email, text, clientId } = data;
     const userMsg = {
       from: 'user',
       text,
       name,
       email,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      clientId
     };
 
     // ذخیره در تاریخچه
