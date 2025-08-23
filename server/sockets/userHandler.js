@@ -37,6 +37,8 @@ export const handleUserConnection = (socket, io) => {
       clientId
     };
 
+    console.log(`📨 User message received in ${sessionId}:`, { name, email, text });
+
     // ذخیره در تاریخچه
     addMessageToChat(sessionId, userMsg);
 
@@ -54,6 +56,8 @@ export const handleUserConnection = (socket, io) => {
       text,
       timestamp: userMsg.timestamp
     });
+
+    console.log(`📤 Message sent to admin room for session: ${sessionId}`);
   });
 
   socket.on('disconnect', () => {
