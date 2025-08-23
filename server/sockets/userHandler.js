@@ -18,6 +18,13 @@ export const handleUserConnection = (socket, io) => {
   const userHistory = getChatHistory(sessionId);
   socket.emit('chat_history', userHistory);
 
+  // درخواست تاریخچه چت
+  socket.on('request_chat_history', (roomId) => {
+    console.log(`📋 User requested chat history for room: ${roomId}`);
+    const history = getChatHistory(roomId);
+    socket.emit('chat_history', history);
+  });
+
   // دریافت پیام کاربر
   socket.on('user_message', async (data) => {
     const { name, email, text, clientId } = data;
