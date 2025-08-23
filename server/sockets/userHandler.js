@@ -1,8 +1,6 @@
 // server/sockets/userHandler.js
 import { getChatHistory, addMessageToChat } from '../utils/chatHistory.js';
 import { sendToTelegram } from '../services/telegramService.js';
-import Message from '../models/Message.js';
-import User from '../models/User.js';
 
 export const handleUserConnection = (socket, io) => {
   const { sessionId } = socket.handshake.auth;
@@ -15,15 +13,6 @@ export const handleUserConnection = (socket, io) => {
   // عضویت در اتاق کاربر
   socket.join(sessionId);
   console.log(`✅ User connected to room: ${sessionId}`);
-
-  Message.find({ sessionId }).sort('timestamp')
-    .then(messages => {
-      socket.emit('chat_history', messages);
-    })
-    .catch(err => {
-      console.error('❌ DB error loading history:', err);
-      socket.emit('chat_history', []);
-    });
 
   // ارسال تاریخچه چت به کاربر
   const userHistory = getChatHistory(sessionId);
@@ -47,26 +36,6 @@ export const handleUserConnection = (socket, io) => {
       timestamp: new Date().toISOString(),
       clientId
     };
-
-    await User.findOneAndUpdate(
-      { sessionId },
-      { name, email },
-      { upsert: true, new: true }
-    );
-
-    // ✅ ذخیره پیام در دیتابیس
-    const message = new Message({ sessionId, from: 'user', text, name, email });
-    await message.save();
-    io.to(sessionId).emit('new_message', message);
-    
-    // ✅ ارسال به ادمین
-    io.emit('admin_new_message', {
-      sessionId,
-      name,
-      email,
-      text,
-      timestamp: message.timestamp
-    });
 
     console.log(`📨 User message received in ${sessionId}:`, { name, email, text });
 
