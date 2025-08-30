@@ -21,12 +21,16 @@ app.use(express.urlencoded({ extended: true }));
 // روت ورود ادمین
 app.use("/api/admin", adminAuthRouter);
 
-// روت AI چت
-app.use("/api", aiChatRouter);
-
 // روت تست
 app.get("/api", (req, res) => {
-  res.json({ status: "Backend is running!" });
+  res.json({ 
+    status: "Backend is running!",
+    features: ["chat", "ai-assistant", "telegram-integration"],
+    timestamp: new Date().toISOString()
+  });
 });
+
+// روت AI چت
+app.use("/api", aiChatRouter);
 
 export default app;

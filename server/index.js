@@ -11,4 +11,6 @@ setupSocket(server,app);
 
 server.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);
+  console.log(`🤖 AI Assistant: ${process.env.OPENAI_API_KEY ? 'Enabled' : 'Disabled (no API key)'}`);
+  console.log(`📱 Features: Chat, AI Assistant, Telegram Integration`);
 });
