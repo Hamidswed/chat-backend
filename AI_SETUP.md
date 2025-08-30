@@ -37,6 +37,7 @@ PORT=4000
 4. آن را در فایل `.env` قرار دهید
 
 **مزایای Groq:**
+
 - ✅ کاملاً رایگان
 - ✅ بدون محدودیت کوتا
 - ✅ خیلی سریع (تا 10x سریع‌تر از OpenAI)
@@ -140,7 +141,11 @@ cat chat-backend/.env
 ```javascript
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://hdelshad.com", "https://your-domain.com"],
+    origin: [
+      "http://localhost:5173",
+      "https://hdelshad.com",
+      "https://your-domain.com",
+    ],
     credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
   }),
@@ -158,8 +163,8 @@ app.use(
 برای مانیتور کردن استفاده از API:
 
 ```javascript
-console.log('AI Request:', { message, timestamp: new Date() });
-console.log('AI Response tokens:', response.data.usage);
+console.log("AI Request:", { message, timestamp: new Date() });
+console.log("AI Response tokens:", response.data.usage);
 ```
 
 ## 💰 هزینه‌ها
